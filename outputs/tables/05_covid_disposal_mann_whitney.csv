@@ -1,0 +1,2 @@
+test,n_pre_covid_sample,n_covid_window_sample,median_pre_covid_days,median_covid_window_days,U_statistic,p_value,rank_biserial_effect
+Mann-Whitney U two-sided,50000,50000,26.0,30.0,1170370363.5,0.0,0.0637

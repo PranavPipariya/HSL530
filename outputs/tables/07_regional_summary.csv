@@ -1,0 +1,7 @@
+REGION,total_cases,pending_rate_pct,disposed_cases,median_disposal_days,p90_disposal_days,pct_allowed_in_labeled
+Central,17493,0.01,17492,43.0,123.9,57.45
+West,58850,18.85,47725,43.0,215.0,32.32
+East,442037,5.01,419900,37.0,161.0,49.2
+Northeast,91228,0.19,91056,23.0,75.0,17.4
+North,226227,7.29,209736,18.0,116.0,64.28
+South,92061,1.11,91041,14.0,55.0,53.93

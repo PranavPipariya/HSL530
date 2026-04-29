@@ -1,0 +1,5 @@
+model,auc_point,auc_ci_low_2_5,auc_ci_high_97_5,bootstrap_iterations
+p75 long-delay logistic,0.6374,0.6337,0.6417,400
+p75 long-delay court+bail baseline,0.6369,0.6328,0.6408,400
+p90 very-long-delay logistic,0.6231,0.6177,0.6293,400
+p90 very-long-delay court+bail baseline,0.6188,0.6129,0.6256,400

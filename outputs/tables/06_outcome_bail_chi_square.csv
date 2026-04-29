@@ -1,0 +1,2 @@
+test,n_observations,rows,columns,degrees_of_freedom,chi2_statistic,p_value,cramers_v
+Chi-square independence: bail type x outcome group,284584,3,4,6,27275.6911,0.0,0.2189

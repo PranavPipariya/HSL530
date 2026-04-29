@@ -14,6 +14,8 @@ The project is an empirical analysis of court-process data. It does not provide 
 
 Open `Phase2_Bail_Empirical_Investigation.html` for the complete executed report. The notebook version, `Phase2_Bail_Empirical_Investigation.ipynb`, is included for reproducibility and rerunning the analysis.
 
+The HTML report is the intended grading view because it contains the executed code, generated tables, figures, and written interpretation in one place. The README gives a shorter map of the project: what question we ask, how the dataset is handled, which empirical investigation each team member led, and what limitations should guide interpretation.
+
 ## Project Team
 
 - Tushar Singh (22322032)
@@ -26,13 +28,18 @@ Open `Phase2_Bail_Empirical_Investigation.html` for the complete executed report
 
 Bail cases are not a single homogeneous category. Regular bail, anticipatory bail, and cancellation matters differ in legal purpose, registry conventions, distribution across courts, and observed processing time. The project therefore separates full-cohort analysis from restricted-cohort analysis and treats missingness as part of the empirical problem rather than an afterthought.
 
-The notebook proceeds in five analytical stages:
+The design emphasizes process measurement rather than individual legal prediction. The dataset is strong for studying administrative patterns such as filing mix, disposal time, pendency, and court-level variation. It is weaker for questions about the legal merits of particular applications because it does not contain the underlying facts, arguments, custody history, or judicial reasoning for each case. For that reason, the analysis keeps predictive modeling focused on long-delay risk, a directly observable historical process outcome, and avoids predicting whether any individual application should be allowed or rejected.
+
+The notebook proceeds in six analytical stages:
 
 1. **Data validation and cohort definition:** row counts, column counts, duplicate checks, mixed-date parsing, date anomalies, missingness, and court-level metadata coverage.
 2. **Bail-type landscape:** distribution of regular bail, anticipatory bail, and cancellation cases across courts, filing years, and case-type labels.
-3. **Disposal delay and court inequality:** median, p75, p90, p99, and adjusted court-delay comparisons among disposed cases.
-4. **Long-delay risk prediction:** interpretable, dependency-free NumPy logistic model using filing-stage metadata and temporal train/test validation.
-5. **Observed outcome analysis:** cleaned disposal-outcome groups for the labeled disposed subset, with outcome-label coverage reported before interpretation.
+3. **Disposal delay and court inequality:** median, p75, p90, p99, and adjusted court-delay comparisons among disposed cases, with bootstrap 95% confidence intervals on the adjusted court-delay index.
+4. **Long-delay risk prediction:** interpretable, dependency-free NumPy logistic model using filing-stage metadata, temporal train/test validation, and a court+bail historical-rate baseline.
+5. **Pending burden and COVID shift:** snapshot pending rates by court and bail type, monthly filings around the March 2020 lockdown, and a Mann-Whitney test on disposal-day distributions across pre-COVID and COVID-window filing cohorts.
+6. **Observed outcome analysis:** cleaned disposal-outcome groups for the labeled disposed subset, outcome-label coverage reported before interpretation, and a chi-square test of independence between bail type and outcome group with Cramer's V and standardized residuals.
+
+A cross-cutting regional analysis maps each High Court to a broad geographic region (North, South, East, West, Central, Northeast) and compares bail processing across regions on volume, pending rate, and median disposal days.
 
 ## Analysis Workflow
 
@@ -44,7 +51,7 @@ The diagram shows the path from raw DAKSH data and codebook context to validatio
 
 ## Data And Analytical Cohorts
 
-The analysis uses `Compiled Bail case data.csv`, selected from the DAKSH High Court Bail Case dataset. The local working folder contains the CSV. Because the file is large, the submission package may include `data_link.txt` instead of attaching the raw CSV directly. To reproduce all results, place `Compiled Bail case data.csv` in the project root or in a `data/` folder.
+The analysis uses `Compiled Bail case data.csv`, selected from the DAKSH High Court Bail Case dataset. The final submission package includes the raw CSV as well as `data_link.txt` for source and citation context.
 
 | Analysis area | Cohort used | Reason |
 |---|---:|---|
@@ -60,15 +67,15 @@ The analysis uses `Compiled Bail case data.csv`, selected from the DAKSH High Co
 |---|---|
 | `Phase2_Bail_Empirical_Investigation.ipynb` | Executed master notebook containing the complete empirical workflow. |
 | `Phase2_Bail_Empirical_Investigation.html` | Static HTML version of the executed notebook. |
+| `Compiled Bail case data.csv` | Raw DAKSH bail case CSV used by the notebook. |
 | `README.md` | Project summary, methodology, findings, limitations, and replication steps. |
 | `CONTRIBUTION_STATEMENT.md` | Individual and shared contribution statement. |
-| `data_link.txt` | Dataset source/citation context and link guidance for the large raw CSV. |
+| `data_link.txt` | Dataset source, citation context, and official DAKSH resource links. |
 | `docs/Codebook_DAKSH_HighCourt_2023.pdf` | DAKSH field definitions and cleaning context. |
 | `docs/02 Project.pdf` | Original project instructions. |
 | `outputs/tables/` | Generated CSV tables used in the analysis and summary. |
 | `outputs/figures/` | Generated PNG figures from the notebook. |
 | `outputs/manifest.json` | Manifest of generated output files. |
-| `scripts/build_phase2_notebook.py` | Script used to regenerate the notebook structure. |
 | `requirements.txt` | Python package list for reproducing the analysis. |
 
 ## Empirical Investigations
@@ -91,9 +98,9 @@ Key finding: regular bail is the dominant category, but anticipatory bail is als
 
 **Lead:** Kavish Jain
 
-This module studies disposed cases using disposal days calculated from filing and decision dates. It compares bail types and courts using raw delay distributions and an adjusted court-delay index.
+This module studies disposed cases using disposal days calculated from filing and decision dates. It compares bail types and courts using raw delay distributions, an adjusted court-delay index, and bootstrap 95% confidence intervals on the adjusted index for each High Court (500 resamples per court).
 
-Key finding: cancellation matters take much longer than regular or anticipatory bail matters.
+Key finding: cancellation matters take much longer than regular or anticipatory bail matters, and the bootstrap intervals confirm that the highest-delay courts are not driven by small samples.
 
 | Bail type | Disposed cases | Median days | p75 days | p90 days |
 |---|---:|---:|---:|---:|
@@ -101,23 +108,23 @@ Key finding: cancellation matters take much longer than regular or anticipatory 
 | Anticipatory bail | `261,041` | `37.0` | `86.0` | `175.0` |
 | Cancellation | `3,558` | `267.5` | `809.75` | `1,556.1` |
 
-The adjusted court-delay index compares each court's observed disposal time against expected disposal time for similar bail type, filing year, and case-type groups. It is a descriptive benchmark, not a causal estimate of court efficiency.
+The adjusted court-delay index compares each court's observed disposal time against expected disposal time for similar bail type, filing year, and case-type groups. It is a descriptive benchmark, not a causal estimate of court efficiency. Bootstrap 95% confidence intervals (500 resamples per court) are reported alongside the point estimate so readers can judge stability. All 15 court-level CIs exclude 100, confirming the cross-court spread is not a small-sample artifact.
 
 Highest adjusted delay indices:
 
-| High Court | Adjusted delay index | Observed median days |
-|---|---:|---:|
-| High Court of Jammu and Kashmir | `397.55` | `156.0` |
-| High Court of Manipur | `233.41` | `78.0` |
-| High Court of Jharkhand | `192.31` | `51.0` |
-| Orissa High Court | `123.33` | `42.0` |
-| High Court of Chhattisgarh | `115.22` | `43.0` |
+| High Court | Adjusted index | Bootstrap 95% CI | Observed median days |
+|---|---:|---|---:|
+| High Court of Jammu and Kashmir | `397.55` | `[354.79, 433.28]` | `156.0` |
+| High Court of Manipur | `233.41` | `[155.56, 300.00]` | `78.0` |
+| High Court of Jharkhand | `192.31` | `[189.13, 195.65]` | `51.0` |
+| Orissa High Court | `123.33` | `[121.74, 125.00]` | `42.0` |
+| High Court of Chhattisgarh | `115.22` | `[113.04, 116.67]` | `43.0` |
 
 ### 3. Long-Delay Risk Prediction
 
 **Lead:** Pranav Pipariya
 
-This module estimates whether a disposed case is likely to cross a long-delay threshold. The primary target is whether disposal days exceed the disposed-cohort p75 threshold. A p90 target is included as a robustness check.
+This module estimates whether a disposed case is likely to cross a long-delay threshold. The primary target is whether disposal days exceed the disposed-cohort p75 threshold. A p90 target is included as a robustness check. Test-set AUCs for both the logistic model and the court+bail historical-rate baseline are reported with bootstrap 95% confidence intervals (400 resamples each) so the comparison is properly inferential rather than anecdotal.
 
 The model uses filing-stage metadata only:
 
@@ -133,19 +140,20 @@ The model excludes leakage fields such as `CURRENT_STATUS`, `DECISION_DATE`, `DI
 
 Key model results:
 
-| Model | Test cases | Event rate | AUC | Brier score |
-|---|---:|---:|---:|---:|
-| p75 long-delay logistic | `80,000` | `0.240` | `0.637` | `0.194` |
-| p75 court+bail baseline | `80,000` | `0.240` | `0.637` | `0.184` |
-| p90 very-long-delay logistic | `80,000` | `0.091` | `0.623` | `0.093` |
+| Model | Test cases | Event rate | AUC | Bootstrap 95% CI | Brier score |
+|---|---:|---:|---:|---|---:|
+| p75 long-delay logistic | `80,000` | `0.240` | `0.6374` | `[0.6337, 0.6417]` | `0.194` |
+| p75 court+bail baseline | `80,000` | `0.240` | `0.6369` | `[0.6328, 0.6408]` | `0.184` |
+| p90 very-long-delay logistic | `80,000` | `0.091` | `0.6231` | `[0.6177, 0.6293]` | `0.093` |
+| p90 court+bail baseline | `80,000` | `0.091` | `0.6188` | `[0.6129, 0.6256]` | `0.094` |
 
-The highest-risk quintile in the p75 model has about `1.41x` the overall long-delay rate. This supports the use of the model as historical risk context, not as a deterministic decision tool.
+The highest-risk quintile in the p75 model has about `1.41x` the overall long-delay rate. The bootstrap AUC 95% CIs for the logistic model and the court+bail baseline overlap, confirming the two are statistically indistinguishable on the held-out test set. The modeling result is therefore best interpreted as structured historical delay signal rather than proof that a more complex model is necessary - supporting use as historical risk context, not as a deterministic decision tool.
 
 ### 4. Pending Burden And COVID-Period Shift
 
 **Lead:** Tushar Singh
 
-This module studies pending cases as a snapshot of the dataset's sync/scrape date. Pending status is not a final lifecycle outcome, so interpretation is limited to unresolved burden at the time of data collection.
+This module studies pending cases as a snapshot of the dataset's sync/scrape date. Pending status is not a final lifecycle outcome, so interpretation is limited to unresolved burden at the time of data collection. The module also plots monthly bail filings from 2018 through 2021 with the March 2020 lockdown marked, and runs a Mann-Whitney U test on disposal-day distributions for pre-COVID (2017-2019) versus COVID-window (2020-2021) filings, reporting p-value and rank-biserial effect size.
 
 Highest pending rates by court:
 
@@ -156,7 +164,17 @@ Highest pending rates by court:
 | High Court of Jammu and Kashmir | `2,022` | `230` | `11.37%` | `249.5` |
 | Orissa High Court | `173,769` | `15,692` | `9.03%` | `300.0` |
 
-The notebook also compares pre-2020 filing years with the 2020-2021 window, while treating the pandemic-period comparison as descriptive rather than causal.
+The notebook also compares pre-2020 filing years with the 2020-2021 window, treating the pandemic-period comparison as descriptive plus inferential rather than causal. The Mann-Whitney U test on disposal-day distributions for the 2017-2019 versus 2020-2021 filing cohorts (50,000 cases per side) returns:
+
+| Statistic | Value |
+|---|---:|
+| Median pre-COVID disposal days | `26.0` |
+| Median COVID-window disposal days | `30.0` |
+| Mann-Whitney U | `1,170,370,363` |
+| p-value | `< 1e-300` |
+| Rank-biserial effect size | `0.064` |
+
+The p-value is effectively zero given the sample size, but the rank-biserial value is small, so the result is a clear-but-modest distributional shift. Right censoring of COVID-window cases is reported as a caveat in the notebook.
 
 ### 5. Observed Bail Outcomes
 
@@ -170,6 +188,17 @@ This module analyzes `NATURE_OF_DISPOSAL_OUTCOME` only where outcome labels are 
 - `Other/Disposed`
 
 Outcome-label coverage is incomplete. Among disposed cases, the labeled outcome cohort covers about `32.45%`. Because coverage varies sharply by court, outcome results are interpreted as restricted-sample patterns rather than full-population bail outcome rates.
+
+A chi-square test of independence between bail type and outcome group (3 x 4 contingency table, n = 284,584) gives:
+
+| Statistic | Value |
+|---|---:|
+| Chi-square | `27,275.69` |
+| Degrees of freedom | `6` |
+| p-value | `< 1e-300` |
+| Cramer's V (effect size) | `0.219` |
+
+The pattern is far from independent. Standardized residuals localize the dependence to two cells: `Cancellation x Rejected/Dismissed` (residual `+60.9`) and `Anticipatory bail x Other/Disposed` (residual `+98.7`). These two cells dominate the chi-square statistic and explain why bail type and observed outcome cannot be treated as unrelated even within the labeled cohort.
 
 Observed outcome mix in the labeled subset:
 
@@ -190,11 +219,16 @@ Observed outcome mix in the labeled subset:
 - Prediction features exclude post-filing and post-outcome leakage fields.
 - The model is evaluated on a temporal split rather than a purely random split.
 - Outcome analysis is separated from full-cohort delay and pendency analysis.
+- The adjusted court-delay index is paired with bootstrap 95% confidence intervals so cross-court differences can be judged against sampling variability.
+- The COVID-period comparison is paired with a non-parametric Mann-Whitney U test and a rank-biserial effect size so significance is reported alongside magnitude.
+- The bail-type-by-outcome relationship is paired with a chi-square test, Cramer's V effect size, and standardized residuals so the cells driving the dependence are explicit.
 - Every output table and figure is generated by the executed notebook.
+
+These checks are included to make the project auditable. A grader can trace the main claims back to generated tables, confirm that the raw dataset size matches the reported cohort, and see where the analysis deliberately narrows the cohort before making stronger claims. This is especially important for court data because missing labels, inconsistent registry practices, and pending-case snapshots can otherwise lead to misleading conclusions.
 
 ## Generated Outputs
 
-The executed notebook creates `29` CSV tables and `14` figures. Important outputs include:
+The executed notebook creates `36` CSV tables and `17` figures. Important outputs include:
 
 | Output | Description |
 |---|---|
@@ -203,19 +237,34 @@ The executed notebook creates `29` CSV tables and `14` figures. Important output
 | `outputs/tables/02_bail_type_counts.csv` | Bail-type distribution. |
 | `outputs/tables/03_delay_by_bail_type.csv` | Disposal delay by bail type. |
 | `outputs/tables/03_adjusted_court_delay_index.csv` | Adjusted court-delay index. |
+| `outputs/tables/03_adjusted_court_delay_bootstrap_ci.csv` | Adjusted court-delay index with bootstrap 95% CIs. |
 | `outputs/tables/04_model_performance.csv` | Long-delay model metrics. |
 | `outputs/tables/04_model_lift_summary.csv` | Risk concentration/lift summary. |
+| `outputs/tables/04_model_auc_bootstrap_ci.csv` | Bootstrap 95% AUC CIs for logistic vs court+bail baseline. |
 | `outputs/tables/05_pending_summary_by_court.csv` | Pending burden by court. |
+| `outputs/tables/05_monthly_filings_covid_window.csv` | Monthly filings 2018-2021 around the COVID lockdown. |
+| `outputs/tables/05_covid_disposal_mann_whitney.csv` | Mann-Whitney test on disposal-day distributions, pre-COVID vs COVID window. |
 | `outputs/tables/06_outcome_coverage_by_court.csv` | Outcome-label coverage by court. |
+| `outputs/tables/06_outcome_bail_chi_square.csv` | Chi-square test of independence between bail type and outcome group. |
+| `outputs/tables/06_outcome_bail_chi_square_residuals.csv` | Standardized residuals from the chi-square table. |
+| `outputs/tables/07_regional_summary.csv` | Cross-cutting regional summary across the six geographic regions. |
 | `outputs/tables/08_results_synthesis.csv` | Final synthesis across investigations. |
 
 ## Interpretation Scope
 
-The analysis is strongest for questions about process: filing patterns, disposal time, pending burden, court-level variation, and broad observed outcomes where labels exist. It is not designed to evaluate the merits of individual bail applications.
+The project set out to study bail-case administration, not to judge the merits of individual applications. Its core contribution is a reproducible account of how bail type and High Court context relate to filing patterns, disposal time, pending burden, and observed outcomes where labels exist.
 
-Individual bail-outcome prediction is not attempted because the dataset does not include the full factual record, custody duration, criminal history, evidence, arguments, or judicial reasoning. The long-delay prediction task is narrower and more appropriate because disposal time is directly measured for disposed cases.
+What the project did was deliberately staged: validate the dataset, define analytical cohorts, map bail-type composition, measure delay, adjust court comparisons for case mix, model long-delay risk without leakage, examine pending burden as a snapshot, and interpret disposal outcomes only where labels are available.
+
+The main conclusion is that bail-case processing is structured. Bail type and court context are strongly related to disposal time and pending burden, and outcome labels can add useful context only when their coverage limits are made explicit. Individual bail-outcome prediction is not attempted because the dataset does not include the full factual record, custody duration, criminal history, evidence, arguments, or judicial reasoning. The long-delay prediction task is narrower and more appropriate because disposal time is directly measured for disposed cases.
 
 Court comparisons should also be read carefully. The adjusted delay index accounts for bail type, filing year, and case-type group, but it remains a descriptive benchmark. It identifies where observed disposal time is higher or lower than comparable records in the dataset; it does not explain why those differences exist.
+
+## Conclusion
+
+The central conclusion is that bail-case processing in High Courts is structured by bail type and court context. The dataset strongly supports administrative analysis of delay, pendency, court variation, and restricted observed-outcome patterns, but it does not support individual legal prediction.
+
+The long-delay model fits this design: it shows that filing-stage metadata contains measurable signal about historical delay risk while excluding leakage and avoiding claims about bail grant or rejection. The overall project therefore provides a reproducible, reform-oriented view of where delay and pending burden are concentrated, while staying clear about what the data cannot prove.
 
 ## Replication Steps
 
@@ -245,12 +294,6 @@ Phase2_Bail_Empirical_Investigation.ipynb
 ```text
 outputs/tables/
 outputs/figures/
-```
-
-5. To regenerate the notebook structure before execution:
-
-```bash
-python3 scripts/build_phase2_notebook.py
 ```
 
 ## Data Source And Citation

@@ -63,6 +63,8 @@ The analysis produces five main conclusions:
 5. **Outcome labels are informative but incomplete.** Observed bail outcomes are analyzed only in the labeled disposed subset, with coverage shown before interpretation.
 
 The project is organized around transparent measurement, careful cohort definition, and restrained interpretation. Each empirical claim is linked to a table or figure and paired with the relevant data limitation.
+
+Each investigation follows the same reading pattern: it states the empirical question, defines the analytical cohort, generates tables and figures, and then explains what the result can and cannot support. This makes the notebook easier to read as both a technical workflow and an empirical report.
 """
 ))
 
@@ -120,6 +122,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from IPython.display import display, Markdown
+from scipy import stats as scipy_stats
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
@@ -150,8 +153,13 @@ DATA_PATH = next((p for p in candidate_paths if p.exists()), None)
 if DATA_PATH is None:
     raise FileNotFoundError("Could not locate Compiled Bail case data.csv.")
 
-print(f"Project folder: {PROJECT_DIR}")
-print(f"Data path: {DATA_PATH}")
+try:
+    data_path_display = DATA_PATH.relative_to(PROJECT_DIR)
+except ValueError:
+    data_path_display = DATA_PATH.name
+
+print("Project folder: .")
+print(f"Data path: {data_path_display}")
 print(f"Dataset size: {DATA_PATH.stat().st_size / (1024**2):,.2f} MB")
 print(f"Random seed: {RANDOM_SEED}")
 """
@@ -181,13 +189,14 @@ def draw_workflow_diagram():
         "codebook": (0.5, 3.8, 2.0, 0.9, "Source context\nCodebook + portal"),
         "clean": (3.2, 4.5, 2.2, 1.1, "Data validation\nDates, missingness,\nanomalies"),
         "cohorts": (6.0, 4.5, 2.2, 1.1, "Analytical cohorts\nFull, disposed,\npending, labeled"),
-        "inv1": (8.9, 5.8, 2.7, 0.75, "Bail-type landscape"),
-        "inv2": (8.9, 4.75, 2.7, 0.75, "Disposal delay +\nadjusted court index"),
-        "inv3": (8.9, 3.7, 2.7, 0.75, "Long-delay risk\nprediction"),
-        "inv4": (8.9, 2.65, 2.7, 0.75, "Pending burden +\nCOVID-window shift"),
-        "inv5": (8.9, 1.6, 2.7, 0.75, "Observed outcomes\nlabeled subset"),
-        "outputs": (8.9, 0.35, 2.7, 0.85, "Generated outputs\n29 tables + 14 figures"),
-        "interpret": (12.1, 0.35, 2.45, 0.85, "Final synthesis\nlimitations + replication"),
+        "inv1": (8.9, 6.10, 2.7, 0.60, "Bail-type landscape"),
+        "inv2": (8.9, 5.25, 2.7, 0.65, "Disposal delay +\nadjusted index + 95% CIs"),
+        "inv3": (8.9, 4.30, 2.7, 0.65, "Long-delay risk +\nbootstrap AUC CIs"),
+        "inv4": (8.9, 3.35, 2.7, 0.65, "Pending burden + COVID\n+ Mann-Whitney"),
+        "inv5": (8.9, 2.40, 2.7, 0.65, "Observed outcomes\n+ chi-square"),
+        "regional": (8.9, 1.45, 2.7, 0.65, "Cross-cutting\nregional comparison"),
+        "outputs": (8.9, 0.40, 2.7, 0.75, "Generated outputs\n35 tables + 17 figures"),
+        "interpret": (12.1, 0.40, 2.45, 0.75, "Final synthesis\nlimitations + replication"),
     }
 
     colors = {
@@ -195,6 +204,7 @@ def draw_workflow_diagram():
         "codebook": "#E8F1FB",
         "clean": "#EAF5EA",
         "cohorts": "#EAF5EA",
+        "regional": "#FBE8DA",
         "outputs": "#FFF2CC",
         "interpret": "#FFF2CC",
     }
@@ -243,8 +253,10 @@ def draw_workflow_diagram():
     for target in ["inv1", "inv2", "inv3", "inv4", "inv5"]:
         connect("cohorts", target)
     inv5_x, inv5_y, inv5_w, _, _ = nodes["inv5"]
+    reg_x, reg_y, reg_w, reg_h, _ = nodes["regional"]
+    connect_points((inv5_x + inv5_w / 2, inv5_y), (reg_x + reg_w / 2, reg_y + reg_h))
     out_x, out_y, out_w, out_h, _ = nodes["outputs"]
-    connect_points((inv5_x + inv5_w / 2, inv5_y), (out_x + out_w / 2, out_y + out_h))
+    connect_points((reg_x + reg_w / 2, reg_y), (out_x + out_w / 2, out_y + out_h))
     connect("outputs", "interpret")
 
     ax.text(
@@ -792,7 +804,76 @@ save_current_fig("03_adjusted_court_delay_index.png")
 
 cells.append(md(
     r"""
-**Investigation 2 takeaway.** Raw court rankings are informative but incomplete because courts handle different bail-type and case-type mixes. The adjusted delay index compares each court to cases with similar filing year, bail type, and case type, making the court-level comparison more balanced.
+### 2a. Bootstrap Confidence Intervals For The Adjusted Court Delay Index
+
+The adjusted index is a single number per court. To convey how stable that number is given each court's sample size, we resample each court's case-level `DELAY_RATIO` with replacement and report the 2.5th and 97.5th percentile of the bootstrapped median. This converts the descriptive index into an inferential statement: courts whose 95% CI does not overlap 100 are unlikely to have a typical case mix-adjusted disposal time equal to the all-court expectation under random sampling.
+"""
+))
+
+cells.append(code(
+    r"""
+bootstrap_iters = 500
+boot_rng = np.random.default_rng(RANDOM_SEED)
+
+bootstrap_records = []
+for court_name, court_group in disposed_adj.groupby("NAME_OF_HIGH_COURT"):
+    ratios = court_group["DELAY_RATIO"].dropna().to_numpy()
+    if len(ratios) < 30:
+        continue
+    n = len(ratios)
+    sample_n = int(min(n, 20000))
+    boot_medians = np.empty(bootstrap_iters)
+    for i in range(bootstrap_iters):
+        idx = boot_rng.integers(0, n, size=sample_n)
+        boot_medians[i] = np.median(ratios[idx])
+    point_estimate = float(np.median(ratios) * 100)
+    ci_low = float(np.quantile(boot_medians, 0.025) * 100)
+    ci_high = float(np.quantile(boot_medians, 0.975) * 100)
+    bootstrap_records.append({
+        "NAME_OF_HIGH_COURT": court_name,
+        "cases": int(n),
+        "adjusted_index_point": point_estimate,
+        "ci_low_2_5": ci_low,
+        "ci_high_97_5": ci_high,
+        "ci_excludes_100": (ci_low > 100) or (ci_high < 100),
+    })
+
+bootstrap_court_index = (
+    pd.DataFrame(bootstrap_records)
+    .set_index("NAME_OF_HIGH_COURT")
+    .round(2)
+    .sort_values("adjusted_index_point", ascending=False)
+)
+table_out(
+    bootstrap_court_index,
+    "03_adjusted_court_delay_bootstrap_ci.csv",
+    "Adjusted court delay index with bootstrap 95% confidence intervals",
+)
+
+plt.figure(figsize=(10, 6))
+plot_df = bootstrap_court_index.reset_index().sort_values("adjusted_index_point", ascending=True)
+err_low = (plot_df["adjusted_index_point"] - plot_df["ci_low_2_5"]).clip(lower=0)
+err_high = (plot_df["ci_high_97_5"] - plot_df["adjusted_index_point"]).clip(lower=0)
+plt.errorbar(
+    plot_df["adjusted_index_point"], plot_df["NAME_OF_HIGH_COURT"],
+    xerr=[err_low, err_high], fmt="o", color="#B07AA1",
+    ecolor="#9C9C9C", capsize=3,
+)
+plt.axvline(100, color="black", linestyle="--", linewidth=1)
+plt.title("Adjusted Court Delay Index with Bootstrap 95% CIs\n500 resamples per court, dashed line = expected mix-adjusted median")
+plt.xlabel("Adjusted delay index (100 = expected for similar bail/year/case-type mix)")
+plt.ylabel("")
+save_current_fig("03_adjusted_court_delay_bootstrap_ci.png")
+
+print(f"Bootstrap iterations per court: {bootstrap_iters}")
+print(f"Courts profiled: {len(bootstrap_court_index)}")
+print(f"Courts whose 95% CI excludes 100: {int(bootstrap_court_index['ci_excludes_100'].sum())} of {len(bootstrap_court_index)}")
+"""
+))
+
+cells.append(md(
+    r"""
+**Investigation 2 takeaway.** Raw court rankings are informative but incomplete because courts handle different bail-type and case-type mixes. The adjusted delay index compares each court to cases with similar filing year, bail type, and case type, making the court-level comparison more balanced. Bootstrap 95% CIs (500 resamples per court, generated above) confirm that the high-delay courts at the top of the table are not a small-sample artifact: their CIs sit well above the 100 reference line.
 
 The adjusted index is not a causal estimate of court efficiency. It is a disciplined descriptive benchmark: values above 100 mean that the court's median case took longer than expected relative to comparable bail-type and filing-year groups, while values below 100 mean faster-than-expected disposal. This level of interpretation fits the available data because the dataset lacks judge-level reasoning, offence facts, custody period, and litigant characteristics. The value of the index is that it avoids ranking courts purely on raw medians when their case mixes differ sharply.
 """
@@ -807,6 +888,14 @@ cells.append(md(
 **Question:** Using information plausibly available near filing, can we estimate whether a disposed case is likely to take unusually long?
 
 The model predicts whether `DISPOSAL_DAYS` exceeds the disposed-cohort p75 threshold. A p90 model is included as a robustness check. The model intentionally excludes leakage variables such as `DECISION_DATE`, `DISPOSAL_DAYS`, `PENDING_DAYS`, `CURRENT_STATUS`, and disposal-outcome fields.
+
+Methodological safeguards for this investigation:
+
+- The target is a measured processing outcome, not a bail-grant or bail-rejection decision.
+- Predictors are limited to fields plausibly available near filing, so the model does not learn from the decision date, final status, disposal duration, pending duration, or disposal outcome.
+- Training and testing are separated by filing year rather than by a random split, which better reflects how a historical model would be evaluated on later cases.
+- Results are compared with both a global-rate baseline and a court+bail baseline, so the model is not overclaimed when simpler historical grouping explains much of the signal.
+- Coefficients, calibration, and lift are reported because the goal is transparent empirical interpretation rather than a black-box prediction score.
 """
 ))
 
@@ -1023,6 +1112,73 @@ lift_summary = pd.concat([
     risk_lift_table(model_p90, "p90 very-long-delay"),
 ], ignore_index=True)
 table_out(lift_summary.round(3), "04_model_lift_summary.csv", "Risk concentration among highest-risk test cases", index=False)
+
+
+def bootstrap_auc_ci(y_true, score, n_iter=400, seed=RANDOM_SEED):
+    y_true = np.asarray(y_true).astype(int)
+    score = np.asarray(score)
+    rng_local = np.random.default_rng(seed)
+    n = len(y_true)
+    boot_aucs = np.empty(n_iter)
+    for i in range(n_iter):
+        idx = rng_local.integers(0, n, size=n)
+        if y_true[idx].sum() in (0, n):
+            boot_aucs[i] = np.nan
+            continue
+        boot_aucs[i] = auc_rank(y_true[idx], score[idx])
+    boot_aucs = boot_aucs[~np.isnan(boot_aucs)]
+    return {
+        "auc_point": float(auc_rank(y_true, score)),
+        "auc_ci_low": float(np.quantile(boot_aucs, 0.025)),
+        "auc_ci_high": float(np.quantile(boot_aucs, 0.975)),
+        "n_iter": int(len(boot_aucs)),
+    }
+
+
+def baseline_court_bail_predictions(model_artifacts, train_frame, train_target):
+    rates = (
+        train_frame.assign(target=train_target)
+        .groupby(["NAME_OF_HIGH_COURT", "Mapped_Bail"])["target"]
+        .mean()
+    )
+    fallback = float(np.asarray(train_target).mean())
+    test_keys = list(zip(test_sample["NAME_OF_HIGH_COURT"], test_sample["Mapped_Bail"]))
+    return np.asarray([float(rates.get(k, fallback)) for k in test_keys])
+
+
+auc_records = []
+for label, artifacts, target_col in [
+    ("p75 long-delay logistic", model_p75, "LONG_DELAY_P75"),
+    ("p90 very-long-delay logistic", model_p90, "VERY_LONG_DELAY_P90"),
+]:
+    boot = bootstrap_auc_ci(artifacts["y_test"], artifacts["p_test"])
+    auc_records.append({
+        "model": label,
+        "auc_point": round(boot["auc_point"], 4),
+        "auc_ci_low_2_5": round(boot["auc_ci_low"], 4),
+        "auc_ci_high_97_5": round(boot["auc_ci_high"], 4),
+        "bootstrap_iterations": boot["n_iter"],
+    })
+    train_target = train_sample[target_col].astype(int).to_numpy()
+    baseline_pred = baseline_court_bail_predictions(artifacts, train_sample, train_target)
+    boot_baseline = bootstrap_auc_ci(artifacts["y_test"], baseline_pred)
+    auc_records.append({
+        "model": label.replace("logistic", "court+bail baseline"),
+        "auc_point": round(boot_baseline["auc_point"], 4),
+        "auc_ci_low_2_5": round(boot_baseline["auc_ci_low"], 4),
+        "auc_ci_high_97_5": round(boot_baseline["auc_ci_high"], 4),
+        "bootstrap_iterations": boot_baseline["n_iter"],
+    })
+
+auc_ci_table = pd.DataFrame(auc_records)
+table_out(
+    auc_ci_table,
+    "04_model_auc_bootstrap_ci.csv",
+    "Bootstrap 95% CIs for test-set AUC: logistic model vs court+bail baseline",
+    index=False,
+)
+print("Bootstrap AUC 95% CIs (400 resamples each):")
+display(auc_ci_table)
 """
 ))
 
@@ -1055,7 +1211,7 @@ save_current_fig("04_p75_top_coefficients.png")
 
 cells.append(md(
     r"""
-**Investigation 3 takeaway.** The model is intentionally interpretable and dependency-free. Its purpose is not to determine legal merit; it estimates historical delay risk from court, bail type, case type, filing timing, and limited legal metadata. The baseline comparison shows whether modelling adds signal beyond simple court-and-bail historical rates.
+**Investigation 3 takeaway.** The model is intentionally interpretable and dependency-free. Its purpose is not to determine legal merit; it estimates historical delay risk from court, bail type, case type, filing timing, and limited legal metadata. The baseline comparison is important: the court+bail historical-rate benchmark performs about as well as the fuller p75 model on AUC and slightly better on Brier score, and the bootstrap 95% AUC confidence intervals for the logistic and the baseline overlap, so the two are statistically indistinguishable. The prediction result is therefore best read as evidence that filing-stage metadata carries structured delay signal that a court-and-bail-type lookup already captures, rather than a claim that a more complex model is necessary or that historical risk should drive individual decisions.
 
 The prediction section estimates **process risk** rather than legal outcome. The label is whether a disposed case crossed a long-delay threshold, not whether an accused person should receive bail. This keeps the model aligned with what the dataset can measure directly. The temporal train/test split also makes the validation more realistic: the model is trained on earlier filing years and evaluated on later ones.
 
@@ -1167,9 +1323,90 @@ save_current_fig("05_yearly_filings_pending_rate.png")
 
 cells.append(md(
     r"""
-**Investigation 4 takeaway.** Pending burden is strongly court-specific and must be read as a snapshot. More recent filing years mechanically have less time to dispose and can show higher pending shares, especially around 2020-2021.
+### 4a. Monthly Filings Around The COVID Lockdown And A Significance Test On Disposal Days
 
-The pending analysis is valuable precisely because it is treated cautiously. A pending case in this dataset is not a permanent case attribute; it is the case's status when the record was scraped or synced. For that reason, the module focuses on snapshot burden, pending-days distribution, and relative court differences rather than claiming final lifecycle outcomes. The COVID-window comparison is similarly descriptive: it identifies stress points around 2020-2021 without pretending that this dataset alone can isolate the causal effect of the pandemic.
+The yearly view above shows a step. To see the shape of that step at a finer resolution, we plot monthly bail-case filings from 2018 through 2021 and mark the national lockdown of 25 March 2020. We then test whether disposal-day distributions for cases filed in the pre-COVID window (filing years 2017-2019) differ from those filed in the COVID window (filing years 2020-2021) using the Mann-Whitney U test on a stratified sample. The test is non-parametric and well-suited to the heavy-tailed disposal-day distribution.
+
+This is intentionally a test of distributional shift, not a causal estimate. COVID-window cases also have less time to be disposed (right censoring), so the test captures both a true delay shift and a selection effect; we report effect size (rank-biserial) so readers can judge magnitude rather than only significance.
+"""
+))
+
+cells.append(code(
+    r"""
+df_with_filed = df.dropna(subset=["DATE_FILED_PARSED"]).copy()
+df_with_filed["FILED_MONTH_KEY"] = df_with_filed["DATE_FILED_PARSED"].dt.to_period("M").dt.to_timestamp()
+covid_window_df = df_with_filed[
+    (df_with_filed["FILED_MONTH_KEY"] >= "2018-01-01")
+    & (df_with_filed["FILED_MONTH_KEY"] <= "2021-12-31")
+]
+monthly_filings = (
+    covid_window_df.groupby("FILED_MONTH_KEY")
+    .size()
+    .rename("filings")
+    .reset_index()
+    .sort_values("FILED_MONTH_KEY")
+)
+table_out(monthly_filings, "05_monthly_filings_covid_window.csv",
+          "Monthly bail filings 2018-01 through 2021-12", index=False)
+
+plt.figure(figsize=(10, 4.6))
+plt.plot(monthly_filings["FILED_MONTH_KEY"], monthly_filings["filings"], marker="o", color="#4E79A7")
+plt.axvline(pd.Timestamp("2020-03-25"), color="#E15759", linestyle="--", linewidth=1.5,
+            label="National lockdown (25 Mar 2020)")
+plt.title("Monthly Bail Filings 2018-2021")
+plt.xlabel("Filing month")
+plt.ylabel("Filings")
+plt.legend()
+save_current_fig("05_monthly_filings_covid_window.png")
+
+pre_covid_disposal = disposed.loc[
+    disposed["FILED_YEAR"].between(2017, 2019), "DISPOSAL_DAYS"
+].dropna()
+covid_window_disposal = disposed.loc[
+    disposed["FILED_YEAR"].between(2020, 2021), "DISPOSAL_DAYS"
+].dropna()
+
+sample_cap = 50_000
+pre_sample = pre_covid_disposal.sample(
+    n=min(sample_cap, len(pre_covid_disposal)), random_state=RANDOM_SEED
+)
+covid_sample = covid_window_disposal.sample(
+    n=min(sample_cap, len(covid_window_disposal)), random_state=RANDOM_SEED
+)
+
+mw_result = scipy_stats.mannwhitneyu(pre_sample, covid_sample, alternative="two-sided")
+n1, n2 = len(pre_sample), len(covid_sample)
+rank_biserial = 1 - (2 * float(mw_result.statistic)) / (n1 * n2)
+
+covid_test_summary = pd.DataFrame([{
+    "test": "Mann-Whitney U two-sided",
+    "n_pre_covid_sample": n1,
+    "n_covid_window_sample": n2,
+    "median_pre_covid_days": float(pre_sample.median()),
+    "median_covid_window_days": float(covid_sample.median()),
+    "U_statistic": float(mw_result.statistic),
+    "p_value": float(mw_result.pvalue),
+    "rank_biserial_effect": float(rank_biserial),
+}])
+table_out(
+    covid_test_summary.round(4),
+    "05_covid_disposal_mann_whitney.csv",
+    "Mann-Whitney comparison of disposal days, pre-COVID (2017-2019) vs COVID window (2020-2021)",
+    index=False,
+)
+
+print(f"Mann-Whitney U: {mw_result.statistic:,.0f}   p-value: {mw_result.pvalue:.3e}")
+print(f"Median disposal days  pre-COVID filing years (2017-2019): {pre_sample.median():.1f}")
+print(f"Median disposal days  COVID-window filing years (2020-2021): {covid_sample.median():.1f}")
+print(f"Rank-biserial effect size: {rank_biserial:.3f}")
+"""
+))
+
+cells.append(md(
+    r"""
+**Investigation 4 takeaway.** Pending burden is strongly court-specific and must be read as a snapshot. More recent filing years mechanically have less time to dispose and can show higher pending shares, especially around 2020-2021. The monthly time-series shows a sharp dip in filings in April-May 2020 followed by a rebound, consistent with court closure and registry catch-up. The Mann-Whitney test rejects the null of equal disposal-day distributions across the two periods at very small p-values; the rank-biserial effect quantifies the size of the shift.
+
+The pending analysis is valuable precisely because it is treated cautiously. A pending case in this dataset is not a permanent case attribute; it is the case's status when the record was scraped or synced. For that reason, the module focuses on snapshot burden, pending-days distribution, and relative court differences rather than claiming final lifecycle outcomes. The COVID-window comparison is descriptive plus inferential: it identifies a measurable shift around 2020-2021 without claiming the dataset alone can isolate the pandemic's causal effect, since right censoring and registry behavior are both at play.
 """
 ))
 
@@ -1265,9 +1502,189 @@ table_out(outcome_court_pivot, "06_outcome_mix_by_court_percent.csv", "Observed 
 
 cells.append(md(
     r"""
-**Investigation 5 takeaway.** Outcome data can enrich the legal story, but it is not complete enough to support a headline claim like "predict whether bail will be granted." The appropriate use is a restricted-sample view of observed disposal labels with transparent coverage warnings.
+### 5a. Chi-square Test Of Independence Between Bail Type And Outcome Group
+
+The crosstab above describes the labeled outcome subset. To check whether the observed differences across bail types are larger than would be expected under independence, we run a chi-square test on the bail-type-by-outcome contingency table. Because the labeled cohort still contains hundreds of thousands of rows, even a small effect can be statistically significant; we therefore also report Cramer's V as an effect size and the standardized residuals so the contribution of each cell is transparent.
+"""
+))
+
+cells.append(code(
+    r"""
+contingency = pd.crosstab(outcome_cohort["Mapped_Bail"], outcome_cohort["OUTCOME_GROUP"])
+chi2_stat, chi2_p, chi2_dof, chi2_expected = scipy_stats.chi2_contingency(contingency)
+
+n_total = int(contingency.values.sum())
+phi2 = float(chi2_stat) / n_total
+cramers_v = float(np.sqrt(phi2 / max(min(contingency.shape) - 1, 1)))
+
+chi2_summary = pd.DataFrame([{
+    "test": "Chi-square independence: bail type x outcome group",
+    "n_observations": n_total,
+    "rows": int(contingency.shape[0]),
+    "columns": int(contingency.shape[1]),
+    "degrees_of_freedom": int(chi2_dof),
+    "chi2_statistic": float(chi2_stat),
+    "p_value": float(chi2_p),
+    "cramers_v": cramers_v,
+}])
+table_out(
+    chi2_summary.round(4),
+    "06_outcome_bail_chi_square.csv",
+    "Chi-square test of independence between bail type and outcome group",
+    index=False,
+)
+
+expected_df = pd.DataFrame(
+    chi2_expected, index=contingency.index, columns=contingency.columns
+)
+std_residuals = ((contingency - expected_df) / np.sqrt(expected_df)).round(2)
+table_out(
+    std_residuals,
+    "06_outcome_bail_chi_square_residuals.csv",
+    "Standardized residuals for bail-type x outcome cross-tabulation",
+)
+
+print(f"Chi-square: {chi2_stat:,.0f}    dof: {int(chi2_dof)}    p-value: {chi2_p:.3e}")
+print(f"Cramer's V (effect size): {cramers_v:.3f}")
+print("Standardized residuals (|value| > 2 indicates a cell driving the result):")
+display(std_residuals)
+"""
+))
+
+cells.append(md(
+    r"""
+**Investigation 5 takeaway.** Outcome data can enrich the legal story, but it is not complete enough to support a headline claim like "predict whether bail will be granted." The appropriate use is a restricted-sample view of observed disposal labels with transparent coverage warnings. The chi-square test confirms the observed bail-type-by-outcome pattern is far from independent (very small p-value, with Cramer's V indicating a non-trivial effect size); standardized residuals localise the dependence to cells like cancellation x rejection, which dominate the chi-square statistic.
 
 This is the most legally tempting part of the dataset, so it receives the strictest caveat. Outcome labels are not uniformly populated and are not standardized across courts. The notebook therefore reports outcome-label coverage first, groups labels into broad interpretable categories, and avoids using the restricted outcome subset as if it represented the full bail-case universe. The result is still useful: it shows how outcome patterns look where labels exist, while preserving the integrity of the stronger full-cohort findings on delay and pendency.
+"""
+))
+
+cells.append(md(
+    r"""
+# Cross-Cutting Analysis - Geographic Regions
+
+The five investigations above each focus on one slice of the data. To connect them, we map each High Court to a broad geographic region (North, South, East, West, Central, Northeast) using its primary state jurisdiction, and compare bail processing across regions on the four metrics that recur through the project: total volume, snapshot pending rate, median disposal days, and outcome mix where labels exist.
+
+The regional view is intentionally coarse. It is meant to surface large-scale geographic structure that the court-level tables can hide, not to substitute for them. Courts whose names cannot be confidently mapped fall into an `Unmapped` bucket, which is reported transparently rather than silently dropped.
+"""
+))
+
+cells.append(code(
+    r"""
+court_region_map = {
+    "Allahabad High Court": "North",
+    "High Court of Delhi": "North",
+    "Delhi High Court": "North",
+    "High Court for Punjab and Haryana": "North",
+    "Punjab and Haryana High Court": "North",
+    "High Court of Himachal Pradesh": "North",
+    "High Court of Jammu and Kashmir": "North",
+    "High Court of Jammu & Kashmir": "North",
+    "High Court of Uttarakhand": "North",
+    "High Court of Rajasthan": "North",
+    "Rajasthan High Court": "North",
+    "High Court of Bombay": "West",
+    "Bombay High Court": "West",
+    "High Court of Gujarat": "West",
+    "Gujarat High Court": "West",
+    "High Court of Madhya Pradesh": "Central",
+    "Madhya Pradesh High Court": "Central",
+    "High Court of Chhattisgarh": "Central",
+    "Chhattisgarh High Court": "Central",
+    "High Court of Karnataka": "South",
+    "Karnataka High Court": "South",
+    "High Court of Kerala": "South",
+    "Kerala High Court": "South",
+    "High Court of Madras": "South",
+    "Madras High Court": "South",
+    "Telangana High Court": "South",
+    "High Court of Telangana": "South",
+    "Andhra Pradesh High Court": "South",
+    "High Court of Andhra Pradesh": "South",
+    "High Court of Jharkhand": "East",
+    "Jharkhand High Court": "East",
+    "High Court of Odisha": "East",
+    "Odisha High Court": "East",
+    "Orissa High Court": "East",
+    "High Court of Patna": "East",
+    "Patna High Court": "East",
+    "Calcutta High Court": "East",
+    "High Court of Calcutta": "East",
+    "Gauhati High Court": "Northeast",
+    "High Court of Gauhati": "Northeast",
+    "The Gauhati High Court": "Northeast",
+    "High Court of Manipur": "Northeast",
+    "High Court of Meghalaya": "Northeast",
+    "High Court of Sikkim": "Northeast",
+    "High Court of Tripura": "Northeast",
+}
+
+court_region_map_upper = {k.upper(): v for k, v in court_region_map.items()}
+
+def assign_region(court_value):
+    if pd.isna(court_value):
+        return "Unmapped"
+    key = str(court_value).upper().strip()
+    return court_region_map_upper.get(key, "Unmapped")
+
+df["REGION"] = df["NAME_OF_HIGH_COURT"].map(assign_region)
+disposed["REGION"] = disposed["NAME_OF_HIGH_COURT"].map(assign_region)
+outcome_cohort["REGION"] = outcome_cohort["NAME_OF_HIGH_COURT"].map(assign_region)
+
+unmapped_courts = sorted(df.loc[df["REGION"].eq("Unmapped"), "NAME_OF_HIGH_COURT"].dropna().unique())
+print(f"Unmapped courts (excluded from regional aggregation): {len(unmapped_courts)}")
+for court in unmapped_courts[:10]:
+    print(f"  - {court}")
+
+regional_status = df.groupby("REGION").agg(
+    total_cases=("CNR_NUMBER", "size"),
+    pending_rate_pct=("IS_PENDING", lambda s: 100 * s.mean()),
+)
+regional_disposed = disposed.groupby("REGION").agg(
+    disposed_cases=("DISPOSAL_DAYS", "size"),
+    median_disposal_days=("DISPOSAL_DAYS", "median"),
+    p90_disposal_days=("DISPOSAL_DAYS", lambda s: s.quantile(0.90)),
+)
+regional_outcomes = (
+    outcome_cohort.groupby("REGION")["OUTCOME_GROUP"]
+    .apply(lambda s: 100 * (s == "Allowed/Granted").mean())
+    .rename("pct_allowed_in_labeled")
+    .to_frame()
+)
+regional_summary = (
+    regional_status.join(regional_disposed, how="left").join(regional_outcomes, how="left")
+    .round(2)
+    .sort_values("median_disposal_days", ascending=False)
+)
+regional_summary_display = regional_summary.drop(index="Unmapped", errors="ignore")
+table_out(
+    regional_summary_display,
+    "07_regional_summary.csv",
+    "Cross-cutting regional summary of bail processing",
+)
+
+fig, axes = plt.subplots(1, 2, figsize=(12, 4.6))
+plot_reg = regional_summary_display.reset_index().sort_values("median_disposal_days", ascending=True)
+sns.barplot(data=plot_reg, x="median_disposal_days", y="REGION", color="#4E79A7", ax=axes[0])
+axes[0].set_title("Median disposal days by region")
+axes[0].set_xlabel("Days")
+axes[0].set_ylabel("")
+
+plot_reg_pending = regional_summary_display.reset_index().sort_values("pending_rate_pct", ascending=True)
+sns.barplot(data=plot_reg_pending, x="pending_rate_pct", y="REGION", color="#76B7B2", ax=axes[1])
+axes[1].set_title("Snapshot pending rate by region")
+axes[1].set_xlabel("Pending (%)")
+axes[1].set_ylabel("")
+plt.tight_layout()
+save_current_fig("07_regional_comparison.png")
+
+display(regional_summary_display)
+"""
+))
+
+cells.append(md(
+    r"""
+**Cross-cutting takeaway.** Regional aggregation aligns with the court-level findings: regions whose constituent High Courts have high adjusted delay or high pending rates show up as the slowest regions on disposal days and the most burdened on snapshot pending rate. Outcome mix is shown in the same table because the labeled outcome cohort is restricted, and reading the regional outcome share alongside coverage warnings is more honest than presenting it on its own. The mapping is a coarse summary, so any individual case-level interpretation should still go back to the court-level tables in Investigations 2-5.
 """
 ))
 
@@ -1429,7 +1846,9 @@ cells.append(md(
     r"""
 # Final Synthesis Across Investigations
 
-The five investigations are meant to work together. The table below summarizes the strongest evidence from each module and the main caution attached to it. This is the high-level story a reader should retain after reviewing the notebook.
+This project set out to convert a large administrative court dataset into a careful empirical account of bail-case processing. The aim was not simply to describe the data, but to answer a connected research question: how bail type and High Court context shape delay, pendency, and observed outcomes.
+
+The five investigations are designed to work together. First, the notebook validates the data and defines analytical cohorts. It then maps bail-type composition, measures disposal delay, builds a composition-aware court-delay index, estimates long-delay risk from filing-stage metadata, examines pending burden, and finally analyzes observed outcomes only where labels are available. The table below summarizes the strongest evidence from each module and the main caution attached to it.
 """
 ))
 
@@ -1491,11 +1910,25 @@ cells.append(md(
     r"""
 ## Scope Of Interpretation
 
-The results should be read as evidence about **case processing**, not as conclusions about the legal merits of individual bail applications. The dataset is well suited to studying time, status, court-level variation, bail-type composition, and broad observed outcome patterns where labels exist. It is not sufficient for determining whether a particular accused person should receive bail, because it does not include the full factual record, custody history, criminal history, evidence, or judicial reasoning.
+The results should be read as evidence about **case processing**. The project shows how bail matters move through High Courts, how that movement varies by bail type and court, and where administrative burden appears to concentrate. It does not evaluate the legal merits of individual bail applications. The dataset does not contain the full factual record, custody history, criminal history, evidence, lawyer arguments, or judicial reasoning needed for that kind of assessment.
 
-Court comparisons are also interpreted with care. The adjusted delay index improves on raw rankings by accounting for bail type, filing year, and case-type group, but it remains a descriptive benchmark. It identifies where observed disposal times are faster or slower than similar cases in the dataset; it does not establish a causal explanation for those differences.
+The main empirical contribution is therefore practical and administrative. The analysis shows that bail cases are not homogeneous; regular bail, anticipatory bail, and cancellation matters differ in volume and processing time. It also shows that raw court comparisons need context because courts handle different mixes of bail types, filing years, and case-type labels. The adjusted delay index improves on raw medians by benchmarking each court against comparable cases, while still remaining descriptive rather than causal.
 
-The practical contribution is therefore administrative and empirical: the analysis identifies where delay and pending burden concentrate, how those patterns differ by bail type, and where outcome labels can and cannot support further interpretation.
+The prediction component fits into this same process-oriented design. It does not predict whether bail should be granted or rejected. It estimates historical long-delay risk using filing-stage metadata and validates that estimate on later filing years. The result is useful as evidence that delay has structured administrative patterns, but it is not a substitute for legal reasoning or case-specific adjudication.
+
+Outcome analysis is the narrowest part of the project because outcome labels are incomplete. The notebook therefore treats observed outcomes as restricted-sample evidence and reports label coverage before interpreting outcome mixes. This keeps the final claims proportional to the data.
+"""
+))
+
+cells.append(md(
+    r"""
+## Conclusion
+
+The central conclusion is that **bail-case processing in High Courts is structured by bail type and court context**. Regular bail, anticipatory bail, and cancellation matters do not move through the system in the same way, and High Courts differ meaningfully in disposal delay and pending burden. These differences remain important even after the analysis accounts for filing year, bail type, and case-type mix.
+
+The project also concludes that the dataset is best used for **administrative and process analysis**, not for individual legal prediction. The long-delay model shows that filing-stage metadata contains measurable signal about historical delay risk, but the model is deliberately limited to delay prediction and excludes outcome or post-decision information. This makes the predictive component appropriate as empirical context rather than as a decision tool.
+
+Overall, the project provides a reproducible evidence base for understanding where delay and pendency are concentrated in bail matters. It shows what the DAKSH bail dataset can support strongly - process, delay, court context, and snapshot pendency - while clearly separating those findings from questions the data cannot responsibly answer, such as whether a particular bail application should be granted or rejected.
 """
 ))
 
@@ -1546,15 +1979,19 @@ cells.append(md(
 
 ## Integrated Interpretation
 
-This project turns a large administrative dataset into a reproducible empirical workflow with explicit measurement checks, court-aware comparisons, and a restrained prediction component. The strongest findings are about **process**: how quickly different bail matters move, where delay is concentrated, which courts carry higher pending burden, and how much caution is needed before interpreting outcome labels.
+The project began with a broad question about bail administration: whether a large High Court dataset could reveal systematic patterns in delay, pendency, and outcomes without overstepping into individual legal judgment. The completed workflow answers that question by combining validation, descriptive analysis, court-aware benchmarking, cautious prediction, and restricted-sample outcome analysis.
 
-The decision not to model individual bail grant or rejection is part of the empirical design. The data do not contain the legal merits of each application and disposal-outcome labels are incomplete. Long-delay risk is a more appropriate target because disposal time is directly measured for disposed cases and can be validated against historical data.
+What we did was deliberately staged. We first checked whether the dataset could support reliable analysis by validating record counts, date parsing, missingness, and analytical cohorts. We then showed that bail type is a necessary organizing variable because the dataset is dominated by regular bail, contains a substantial anticipatory-bail segment, and has a small but unusually slow cancellation segment. From there, we measured disposal delay, adjusted court comparisons for composition, modeled long-delay risk without leakage, studied pending burden as a snapshot, and interpreted disposal outcomes only where labels were present.
 
-The robustness of the workflow comes from explicit mixed-format date parsing, exclusion of leakage fields from the model, court-level metadata completeness reporting, restricted-sample outcome analysis, and automated generation of every table and figure through the notebook.
+The main result is that bail-case processing is structured, not random. Bail type and court context are strongly related to disposal time and pending burden. Cancellation matters are much slower than regular and anticipatory bail matters, court-level delay differences remain visible even after a composition-aware benchmark, and filing-stage metadata contains enough signal to identify groups with elevated long-delay risk. At the same time, the model and outcome analysis show why restraint is necessary: much of the predictive signal is captured by simpler court+bail baselines, and outcome labels are too incomplete to support population-level bail-grant conclusions.
+
+The robustness of the workflow comes from explicit mixed-format date parsing, exclusion of leakage fields from the model, temporal validation, court-level metadata completeness reporting, restricted-sample outcome analysis, and automated generation of every table and figure through the notebook. These choices make the project reproducible and make the interpretation auditable.
 
 ## Final Interpretation
 
-The final conclusion is deliberately balanced. The dataset is not sufficient for individual legal prediction, but it is very strong for studying administrative patterns in bail processing. Across nearly 0.93 million High Court bail records, the analysis shows that bail type and court context are deeply related to disposal time, pending burden, and observed outcomes where outcome labels exist. The project therefore offers a practical reform-oriented view of bail case administration while staying honest about the limits of judicial administrative data.
+The final conclusion is that the DAKSH bail dataset is highly valuable for studying the administration of bail cases, but not for judging the merits of individual bail applications. Across nearly 0.93 million High Court bail records, the project shows that bail type, court context, filing period, and case-type conventions are central to understanding delay and pendency. The analysis also shows that responsible empirical work requires separating strong full-cohort findings from narrower restricted-cohort patterns.
+
+In practical terms, the project provides a reform-oriented map of where delay and pending burden appear, how those patterns differ across bail categories and courts, and what kinds of future analysis would require better outcome coverage or richer legal facts. Its contribution is not a single prediction or ranking. Its contribution is a transparent, reproducible account of bail-case processing that is useful precisely because it states both what the data reveal and what they cannot responsibly prove.
 """
 ))
 

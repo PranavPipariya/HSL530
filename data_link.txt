@@ -10,7 +10,7 @@ https://www.dakshindia.org/daksh-high-court-data-portal/
 Official DAKSH Bail Dashboard:
 https://database.dakshindia.org/bail-dashboard/
 
-Official dataset resources are linked from the DAKSH High Court Data Portal and Bail Dashboard. If the CSV is too large for email attachment, include this file in the submission folder and provide the dataset through an accessible shared drive link or the official DAKSH resource link.
+The final submission package includes the CSV used by the notebook. The official DAKSH resources above are retained for source verification, citation context, and fallback access if an email system blocks the attached zip because of file-size limits.
 
 License/context noted by DAKSH:
 Datasets within the DAKSH High Court Database are made available under the Creative Commons Attribution-Non Commercial 4.0 International license (CC BY-NC 4.0). DAKSH also notes that data availability gaps and other limitations may affect findings.

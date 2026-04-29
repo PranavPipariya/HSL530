@@ -11,3 +11,4 @@ phase_1_submission (1).html
 .ipynb_checkpoints/
 __pycache__/
 *.pyc
+test/
