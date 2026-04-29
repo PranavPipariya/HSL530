@@ -14,6 +14,14 @@ The project is an empirical analysis of court-process data. It does not provide 
 
 Open `Phase2_Bail_Empirical_Investigation.html` for the complete executed report. The notebook version, `Phase2_Bail_Empirical_Investigation.ipynb`, is included for reproducibility and rerunning the analysis.
 
+## Project Team
+
+- Tushar Singh (22322032)
+- Pranav Pipariya (22322022)
+- Tanishq Gupta (22322031)
+- Kavish Jain (22322017)
+- Yash Kumar (22322034)
+
 ## Research Design
 
 Bail cases are not a single homogeneous category. Regular bail, anticipatory bail, and cancellation matters differ in legal purpose, registry conventions, distribution across courts, and observed processing time. The project therefore separates full-cohort analysis from restricted-cohort analysis and treats missingness as part of the empirical problem rather than an afterthought.
@@ -67,6 +75,8 @@ The analysis uses `Compiled Bail case data.csv`, selected from the DAKSH High Co
 
 ### 1. Bail-Type Landscape
 
+**Lead:** Tanishq Gupta
+
 This module describes how regular bail, anticipatory bail, and cancellation cases are distributed across High Courts, filing years, and case-type labels. It establishes the composition of the dataset before comparing delay or pendency.
 
 Key finding: regular bail is the dominant category, but anticipatory bail is also substantial and cancellation is rare.
@@ -78,6 +88,8 @@ Key finding: regular bail is the dominant category, but anticipatory bail is als
 | Cancellation | `5,405` | `0.58%` |
 
 ### 2. Disposal Delay And Court Inequality
+
+**Lead:** Kavish Jain
 
 This module studies disposed cases using disposal days calculated from filing and decision dates. It compares bail types and courts using raw delay distributions and an adjusted court-delay index.
 
@@ -102,6 +114,8 @@ Highest adjusted delay indices:
 | High Court of Chhattisgarh | `115.22` | `43.0` |
 
 ### 3. Long-Delay Risk Prediction
+
+**Lead:** Pranav Pipariya
 
 This module estimates whether a disposed case is likely to cross a long-delay threshold. The primary target is whether disposal days exceed the disposed-cohort p75 threshold. A p90 target is included as a robustness check.
 
@@ -129,6 +143,8 @@ The highest-risk quintile in the p75 model has about `1.41x` the overall long-de
 
 ### 4. Pending Burden And COVID-Period Shift
 
+**Lead:** Tushar Singh
+
 This module studies pending cases as a snapshot of the dataset's sync/scrape date. Pending status is not a final lifecycle outcome, so interpretation is limited to unresolved burden at the time of data collection.
 
 Highest pending rates by court:
@@ -143,6 +159,8 @@ Highest pending rates by court:
 The notebook also compares pre-2020 filing years with the 2020-2021 window, while treating the pandemic-period comparison as descriptive rather than causal.
 
 ### 5. Observed Bail Outcomes
+
+**Lead:** Yash Kumar
 
 This module analyzes `NATURE_OF_DISPOSAL_OUTCOME` only where outcome labels are available. Labels are cleaned into broad groups:
 

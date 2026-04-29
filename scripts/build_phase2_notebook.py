@@ -547,6 +547,8 @@ cells.append(md(
     r"""
 # Investigation 1 - Bail-Type Landscape
 
+**Lead:** Tanishq Gupta
+
 **Question:** How are regular bail, anticipatory bail, and cancellation cases distributed across courts, years, and case-type conventions?
 
 This module uses the full dataset because `Mapped_Bail`, court, filing year, and case type are available for all records.
@@ -652,6 +654,8 @@ Substantively, this matters because the analysis should not treat all bail cases
 cells.append(md(
     r"""
 # Investigation 2 - Disposal Delay And Court Inequality
+
+**Lead:** Kavish Jain
 
 **Question:** Which courts and bail types take longer to dispose cases, and does the ranking change after adjusting for bail type, filing year, and case-type mix?
 
@@ -797,6 +801,8 @@ The adjusted index is not a causal estimate of court efficiency. It is a discipl
 cells.append(md(
     r"""
 # Investigation 3 - Long-Delay Risk Prediction
+
+**Lead:** Pranav Pipariya
 
 **Question:** Using information plausibly available near filing, can we estimate whether a disposed case is likely to take unusually long?
 
@@ -1061,6 +1067,8 @@ cells.append(md(
     r"""
 # Investigation 4 - Pending Burden And COVID-Period Shift
 
+**Lead:** Tushar Singh
+
 **Question:** How did pending burden and filing/disposal patterns vary by court, bail type, and the 2020-2021 COVID-period window?
 
 `CURRENT_STATUS` and `PENDING_DAYS` are scrape-date dependent. Pending analysis is therefore a snapshot of unresolved cases as recorded in the dataset, not a complete longitudinal survival estimate.
@@ -1168,6 +1176,8 @@ The pending analysis is valuable precisely because it is treated cautiously. A p
 cells.append(md(
     r"""
 # Investigation 5 - Observed Bail Outcomes
+
+**Lead:** Yash Kumar
 
 **Question:** Where outcome labels are available, what patterns appear across bail type and court?
 

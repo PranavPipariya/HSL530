@@ -3,7 +3,7 @@
 <html lang="en">
 <head><meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Notebook</title><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.1.10/require.min.js"></script>
+<title>Phase2_Bail_Empirical_Investigation</title><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.1.10/require.min.js"></script>
 <style type="text/css">
     pre { line-height: 125%; }
 td.linenos .normal { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
@@ -9401,7 +9401,8 @@ Random seed: 42
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h1 id="Investigation-1---Bail-Type-Landscape">Investigation 1 - Bail-Type Landscape<a class="anchor-link" href="#Investigation-1---Bail-Type-Landscape">¶</a></h1><p><strong>Question:</strong> How are regular bail, anticipatory bail, and cancellation cases distributed across courts, years, and case-type conventions?</p>
+<h1 id="Investigation-1---Bail-Type-Landscape">Investigation 1 - Bail-Type Landscape<a class="anchor-link" href="#Investigation-1---Bail-Type-Landscape">¶</a></h1><p><strong>Lead:</strong> Tanishq Gupta</p>
+<p><strong>Question:</strong> How are regular bail, anticipatory bail, and cancellation cases distributed across courts, years, and case-type conventions?</p>
 <p>This module uses the full dataset because <code>Mapped_Bail</code>, court, filing year, and case type are available for all records.</p>
 </div>
 </div>
@@ -10044,7 +10045,8 @@ Random seed: 42
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h1 id="Investigation-2---Disposal-Delay-And-Court-Inequality">Investigation 2 - Disposal Delay And Court Inequality<a class="anchor-link" href="#Investigation-2---Disposal-Delay-And-Court-Inequality">¶</a></h1><p><strong>Question:</strong> Which courts and bail types take longer to dispose cases, and does the ranking change after adjusting for bail type, filing year, and case-type mix?</p>
+<h1 id="Investigation-2---Disposal-Delay-And-Court-Inequality">Investigation 2 - Disposal Delay And Court Inequality<a class="anchor-link" href="#Investigation-2---Disposal-Delay-And-Court-Inequality">¶</a></h1><p><strong>Lead:</strong> Kavish Jain</p>
+<p><strong>Question:</strong> Which courts and bail types take longer to dispose cases, and does the ranking change after adjusting for bail type, filing year, and case-type mix?</p>
 <p>This module uses disposed cases with valid disposal days and excludes the small number of records where decision date is earlier than filing date.</p>
 </div>
 </div>
@@ -10719,7 +10721,8 @@ Very-long-delay threshold p90: &gt; 140 days
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h1 id="Investigation-3---Long-Delay-Risk-Prediction">Investigation 3 - Long-Delay Risk Prediction<a class="anchor-link" href="#Investigation-3---Long-Delay-Risk-Prediction">¶</a></h1><p><strong>Question:</strong> Using information plausibly available near filing, can we estimate whether a disposed case is likely to take unusually long?</p>
+<h1 id="Investigation-3---Long-Delay-Risk-Prediction">Investigation 3 - Long-Delay Risk Prediction<a class="anchor-link" href="#Investigation-3---Long-Delay-Risk-Prediction">¶</a></h1><p><strong>Lead:</strong> Pranav Pipariya</p>
+<p><strong>Question:</strong> Using information plausibly available near filing, can we estimate whether a disposed case is likely to take unusually long?</p>
 <p>The model predicts whether <code>DISPOSAL_DAYS</code> exceeds the disposed-cohort p75 threshold. A p90 model is included as a robustness check. The model intentionally excludes leakage variables such as <code>DECISION_DATE</code>, <code>DISPOSAL_DAYS</code>, <code>PENDING_DAYS</code>, <code>CURRENT_STATUS</code>, and disposal-outcome fields.</p>
 </div>
 </div>
@@ -11694,7 +11697,8 @@ Features: ['NAME_OF_HIGH_COURT', 'Mapped_Bail', 'CASE_TYPE_GROUP', 'FILED_YEAR',
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h1 id="Investigation-4---Pending-Burden-And-COVID-Period-Shift">Investigation 4 - Pending Burden And COVID-Period Shift<a class="anchor-link" href="#Investigation-4---Pending-Burden-And-COVID-Period-Shift">¶</a></h1><p><strong>Question:</strong> How did pending burden and filing/disposal patterns vary by court, bail type, and the 2020-2021 COVID-period window?</p>
+<h1 id="Investigation-4---Pending-Burden-And-COVID-Period-Shift">Investigation 4 - Pending Burden And COVID-Period Shift<a class="anchor-link" href="#Investigation-4---Pending-Burden-And-COVID-Period-Shift">¶</a></h1><p><strong>Lead:</strong> Tushar Singh</p>
+<p><strong>Question:</strong> How did pending burden and filing/disposal patterns vary by court, bail type, and the 2020-2021 COVID-period window?</p>
 <p><code>CURRENT_STATUS</code> and <code>PENDING_DAYS</code> are scrape-date dependent. Pending analysis is therefore a snapshot of unresolved cases as recorded in the dataset, not a complete longitudinal survival estimate.</p>
 </div>
 </div>
@@ -12350,7 +12354,8 @@ Features: ['NAME_OF_HIGH_COURT', 'Mapped_Bail', 'CASE_TYPE_GROUP', 'FILED_YEAR',
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h1 id="Investigation-5---Observed-Bail-Outcomes">Investigation 5 - Observed Bail Outcomes<a class="anchor-link" href="#Investigation-5---Observed-Bail-Outcomes">¶</a></h1><p><strong>Question:</strong> Where outcome labels are available, what patterns appear across bail type and court?</p>
+<h1 id="Investigation-5---Observed-Bail-Outcomes">Investigation 5 - Observed Bail Outcomes<a class="anchor-link" href="#Investigation-5---Observed-Bail-Outcomes">¶</a></h1><p><strong>Lead:</strong> Yash Kumar</p>
+<p><strong>Question:</strong> Where outcome labels are available, what patterns appear across bail type and court?</p>
 <p>Outcome analysis is restricted because <code>NATURE_OF_DISPOSAL_OUTCOME</code> is missing for a large share of disposed cases and labels are not standardized across courts. We report coverage before interpreting outcome mixes.</p>
 </div>
 </div>
