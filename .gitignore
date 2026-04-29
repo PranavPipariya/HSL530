@@ -1,0 +1,13 @@
+# Large source data is referenced through data_link.txt.
+Compiled Bail case data.csv
+data/Compiled Bail case data.csv
+
+# Previous phase artifacts not part of the Phase 2 repository package.
+Phase1_Bail_IO_and_EDA_HQ.ipynb
+phase_1_submission (1).html
+
+# Local/runtime clutter.
+.DS_Store
+.ipynb_checkpoints/
+__pycache__/
+*.pyc

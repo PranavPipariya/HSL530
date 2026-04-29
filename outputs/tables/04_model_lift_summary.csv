@@ -1,0 +1,7 @@
+target,selected_highest_risk_share,selected_cases,observed_event_rate_selected,overall_event_rate,lift_vs_overall,captured_events_share
+p75 long-delay,0.1,8019,0.289,0.24,1.202,0.121
+p75 long-delay,0.2,16466,0.339,0.24,1.409,0.29
+p75 long-delay,0.3,24496,0.309,0.24,1.286,0.394
+p90 very-long-delay,0.1,8059,0.075,0.091,0.825,0.083
+p90 very-long-delay,0.2,16023,0.135,0.091,1.483,0.297
+p90 very-long-delay,0.3,24367,0.15,0.091,1.641,0.5

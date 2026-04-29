@@ -1,0 +1,7 @@
+model,n,event_rate,threshold,accuracy,precision,recall,specificity,brier,auc_rank,tp,fp,tn,fn
+p75 long-delay logistic,80000,0.24,0.254,0.556,0.305,0.659,0.524,0.194,0.637,12675,28940,31824,6561
+p75 long-delay global baseline,80000,0.24,0.254,0.24,0.24,1.0,0.0,0.183,0.498,19236,60764,0,0
+p75 long-delay court+bail baseline,80000,0.24,0.254,0.558,0.286,0.558,0.558,0.184,0.637,10738,26845,33919,8498
+p90 very-long-delay logistic,80000,0.091,0.103,0.527,0.124,0.689,0.511,0.093,0.623,5022,35553,37157,2268
+p90 very-long-delay global baseline,80000,0.091,0.103,0.091,0.091,1.0,0.0,0.083,0.499,7290,72710,0,0
+p90 very-long-delay court+bail baseline,80000,0.091,0.103,0.617,0.139,0.615,0.617,0.084,0.619,4481,27845,44865,2809

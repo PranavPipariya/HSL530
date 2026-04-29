@@ -1,0 +1,8 @@
+item,status
+Notebook runs from project folder without absolute data path,PASS
+Raw column count is 32,PASS
+"Record count is 927,896",PASS
+All non-null core date values parsed,PASS
+Prediction excludes leakage fields,PASS
+Tables generated,29 CSV files
+Figures generated,14 PNG files

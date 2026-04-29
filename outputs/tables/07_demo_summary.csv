@@ -1,0 +1,2 @@
+input_high_court,input_bail_type,input_filing_year,input_filing_month,input_case_type_group,similarity_level_used,similar_disposed_cases,similar_median_disposal_days,similar_p75_disposal_days,similar_p90_disposal_days,model_estimated_long_delay_risk_p75,court_bail_pending_rate,court_bail_total_cases,outcome_context_available
+HIGH COURT OF RAJASTHAN,REGULAR BAIL,2020,7,CRLMB,court+bail+case_type,161083,16.0,35.0,70.0,0.137,0.0168,170035,44639

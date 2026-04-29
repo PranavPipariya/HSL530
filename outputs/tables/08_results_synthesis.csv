@@ -1,0 +1,6 @@
+module,strongest_evidence,key_number,main_caution
+Bail-type landscape,"Regular bail is the dominant category, but anticipatory bail is substantial and cancellation is rare.",Regular 68.88%; anticipatory 30.54%; cancellation 0.58%,"Bail-type mix differs sharply by court, so pooled comparisons can mislead."
+Disposal delay,Cancellation matters take far longer than regular or anticipatory bail matters.,"Median days: regular 23, anticipatory 37, cancellation 267.5",Delay comparisons are descriptive; the data do not include all legal merits or case complexity factors.
+Adjusted court inequality,Court-level delay differences remain visible after using a bail/year/case-type benchmark.,Highest adjusted index: HIGH COURT OF JAMMU AND KASHMIR (397.55),"The index is a benchmark, not a causal estimate of court efficiency."
+Long-delay risk model,"Filing-stage metadata contains signal for long-delay risk, but the model is best used as context rather than a deterministic prediction.",p75 test AUC 0.637; top-quintile risk lift 1.41x,"Prediction target is delay, not bail outcome or legal merit."
+Pending and outcome analysis,Pending burden and observed outcome patterns vary strongly by court and bail type.,Highest pending rate: ALLAHABAD HIGH COURT (48.96%); outcome-label coverage 32.45%,Pending status is a scrape-date snapshot; outcome labels are incomplete.

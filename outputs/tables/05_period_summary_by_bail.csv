@@ -1,0 +1,7 @@
+PERIOD,Mapped_Bail,cases,pending_rate,median_pending_days,disposed_cases,median_disposal_days,p75_disposal_days
+COVID-window filing years (2020-2021),ANTICIPATORY BAIL,61630,24.5,139.0,46531,31.0,62
+COVID-window filing years (2020-2021),CANCELLATION,1067,69.92,160.0,321,111.0,247
+COVID-window filing years (2020-2021),REGULAR BAIL,97947,16.53,147.0,81756,29.0,67
+Pre-COVID filing years (2010-2019),ANTICIPATORY BAIL,221762,3.27,601.0,214510,38.0,93
+Pre-COVID filing years (2010-2019),CANCELLATION,4338,25.38,932.0,3237,300.0,891
+Pre-COVID filing years (2010-2019),REGULAR BAIL,541152,1.95,831.0,530595,22.0,52

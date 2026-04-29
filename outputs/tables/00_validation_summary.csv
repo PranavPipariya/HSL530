@@ -1,0 +1,8 @@
+check,value
+Expected raw columns,32
+Loaded records,927896
+Unique CNR_NUMBER,923038
+Duplicate CNR_NUMBER rows,4858
+Decision date before filed date,32
+Disposed cases missing decision date,0
+Pending cases with decision date,0
